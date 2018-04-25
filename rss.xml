@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?><rss xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title><![CDATA[Brooks Becton's personal web site]]></title><description><![CDATA[A small personal website containing blogs.]]></description><link>https://brooksbecton.github.io/brooksbecton.github.io-gatsby/</link><generator>RSS for Node</generator><lastBuildDate>Wed, 25 Apr 2018 03:33:52 GMT</lastBuildDate><item><title><![CDATA[Improving UI in the Time Clock]]></title><description><![CDATA[Our time clock has had some issues with how with how supervisors add, edit, and delete student punches. Supervisors could modify a punches…]]></description><link>https://brooksbecton.github.io/brooksbecton.github.io-gatsby//Timeclock Table/</link><guid isPermaLink="false">https://brooksbecton.github.io/brooksbecton.github.io-gatsby//Timeclock Table/</guid><pubDate>Wed, 18 Apr 2018 00:00:00 GMT</pubDate><content:encoded>&lt;p&gt;Our time clock has had some issues with how with how supervisors add, edit, and delete student punches. Supervisors could modify a punches, but afterwards it was hard to see how your edits effect the students time. This past week I aimed to provide a clear interface to users that gives instant feedback to reduce confusion and frustration of the supervisors.&lt;/p&gt;
+&lt;p&gt;The previous flow for fixing a punch:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Find the error. &lt;em&gt;This can be a task on its own&lt;/em&gt;.&lt;/li&gt;
+&lt;li&gt;Make an edit&lt;/li&gt;
+&lt;li&gt;Click off of a student and then click back or refresh the page&lt;/li&gt;
+&lt;li&gt;Look at the amount of hours worked &lt;em&gt;This could be different then what gets printed on the time sheet.&lt;/em&gt;&lt;/li&gt;
+&lt;li&gt;Print the time sheet&lt;/li&gt;
+&lt;li&gt;Check to see if the pay actually worked out&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;&lt;em&gt;Repeat as necessary&lt;/em&gt;&lt;/p&gt;
+&lt;p&gt;All of these steps lead to supervisors getting frustrated or confused. The solution, for them, was to either put in a ticket or try to edit the time until something accurate resulted.&lt;/p&gt;
+&lt;h2&gt;Improving UI&lt;/h2&gt;
+&lt;p&gt;If someone came by to ask for help with their student’s punches, it was easiest for me to use something like &lt;a href=&quot;https://www.mysql.com/products/workbench/&quot;&gt;MySQL Workbench&lt;/a&gt; and see what the punches look like in the database. Most of the time there was some kind of odd misplaced punch and I would delete it. This was almost always followed by the supervisor saying something like, “Oh it was super clear when you look at it that way, but it’s hard to see that with what we have.”&lt;/p&gt;
+&lt;p&gt;I did a little searching and decided to use &lt;a href=&quot;https://github.com/react-tools/react-table&quot;&gt;React Table&lt;/a&gt; because it had some built in sorting, searching, and it was easy to just throw your data at it.&lt;/p&gt;
+&lt;h2&gt;Responsiveness&lt;/h2&gt;
+&lt;p&gt;We needed a way to provide instant feedback to a supervisor right after a someone makes an edit. We needed to get away from users having click around to try and trigger a &lt;code class=&quot;language-text&quot;&gt;componentDidUpdate&lt;/code&gt; or refresh the page to try and trigger some &lt;code class=&quot;language-text&quot;&gt;componentDidMount&lt;/code&gt; to get the student’s information to update. The new table view uses the &lt;a href=&quot;https://medium.com/@dan_abramov/smart-and-dumb-components-7ca2f9a7c7d0&quot;&gt;Presentation/Container Components&lt;/a&gt;, so the top level container gets the punches and drops them down to it’s children. So if I ever want to show a user how their changes affect the student’s hours worked, I can re pull the student’s punches and the UI will update.&lt;/p&gt;
+&lt;p&gt;I also provided a few checks for students punches to help supervisors see problems like:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;Double Clock Ins/Outs&lt;/strong&gt; - A supervisor accidentally add in an extra clock in/out.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Overworking/Missed Punch&lt;/strong&gt; - A student has allegedly worked over 8 hours straight.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Both of these will get highlighted for the supervisor to draw their eyes straight to the problem. This directly fixes the issue of a supervisor not knowing if the change they just made causes more issues. As soon as a supervisor makes an edit, the punches get re-pulled, both of these checks happen, and the rows will get highlighted if anything is wrong.&lt;/p&gt;
+&lt;h2&gt;Punch Error Checking&lt;/h2&gt;
+&lt;p&gt;Checking the punches has to find errors that are objectively incorrect. Objective errors include working too much and malformed clock ins/outs. Checking for over work is straight forward. We already have some code that calculates the amount of time worked and how much a student has been paid per punch. It’s as simple as&lt;/p&gt;
+&lt;p&gt;&lt;code class=&quot;language-text&quot;&gt;amountOfHoursWorked &amp;gt; maxHoursWorked&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;Finding the malformed punches is a slightly harder issue, but not too bad. Our data base punches table is set up to take in single punches. So each individual row is a punch. Pairing up these punches can be done, but is brittle to punches that don’t follow a clock in followed by a clock out.&lt;/p&gt;
+&lt;p&gt;How do these rogue punches enter the database?&lt;/p&gt;
+&lt;p&gt;&lt;em&gt;Ya students figuring out a way to clock in a million times?&lt;/em&gt;&lt;/p&gt;
+&lt;p&gt;It mostly boils down to a supervisor adding in extra punches because the old UI isn’t clear about how the punches are laid out. The old UI will try to pair up the punches and let you know how much a student has worked, but if there is a rogue punch it becomes inaccurate. The goal of this table is to provide both the derived calculations and the raw data.&lt;/p&gt;
+&lt;p&gt;So how is it done?&lt;/p&gt;
+&lt;p&gt;&lt;code class=&quot;language-text&quot;&gt;^10(10)*$&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;I take just the boolean value of the &lt;code class=&quot;language-text&quot;&gt;isClockIn&lt;/code&gt; attribute of a punch and make string of 1’s and 0’s. If the string fails, then I can highlight the row.&lt;/p&gt;
+&lt;p&gt;Crazy to think that the lunch box problems I got in my university’s automata class could be applied to something in an actual application.&lt;/p&gt;
+&lt;img class=&quot;lazy&quot; data-src=&quot;{{ site.baseurl }}/images/timeclock-table/studentsTable.png&quot; alt=&quot;Table of students time totals&quot; sizes=&quot;(min-width: 100%)&quot;/&gt;
+&lt;p&gt;This is the table that the users first see. It lists their students who have punches for the pay period they have selected.&lt;/p&gt;
+&lt;p&gt;If a student has worked too much or has double clock ins/out they will be highlighted&lt;/p&gt;
+&lt;img class=&quot;lazy&quot; data-src=&quot;{{ site.baseurl }}/images/timeclock-table/studentTableWithHighlight.png&quot; alt=&quot;A close up of a student&apos;s row that is highlighted yellow&quot; sizes=&quot;(min-width: 100%)&quot; /&gt;
+&lt;p&gt;The student above is highlighted because one of their punches is over 9 hours. Once a supervisor clicks on the student they will see that student’s table as shown below.&lt;/p&gt;
+&lt;img class=&quot;lazy&quot; data-src=&quot;{{ site.baseurl }}/images/timeclock-table/individualTable.png&quot; alt=&quot;Table of an individual student&apos;s time totals&quot; sizes=&quot;(min-width: 100%)&quot; /&gt;
+&lt;p&gt;At this point the supervisor has options to add, edit, or delete any of the punches that may be cause the row to highlight. After any of these actions, the punches will be re pulled and the calculations for pay, hours worked, and potential errors will be reevaluated.&lt;/p&gt;
+&lt;p&gt;The new flow is&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;See that a student is highlighted.&lt;/li&gt;
+&lt;li&gt;Click on the student and sees the highlighted punch.&lt;/li&gt;
+&lt;li&gt;Edit the punches to the correct time &lt;em&gt;After submitting the page re calculates amounts&lt;/em&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;&lt;em&gt;Repeat as necessary&lt;/em&gt;&lt;/p&gt;</content:encoded></item><item><title><![CDATA[SWAPI Graph]]></title><description><![CDATA[I created a web site for visualizing the data found in the Star Wars API. Allows users to insert nodes into a graph and the app will…]]></description><link>https://brooksbecton.github.io/brooksbecton.github.io-gatsby//SWAPI_Graph/</link><guid isPermaLink="false">https://brooksbecton.github.io/brooksbecton.github.io-gatsby//SWAPI_Graph/</guid><pubDate>Thu, 01 Mar 2018 19:16:00 GMT</pubDate><content:encoded>&lt;p&gt;I created a web site for visualizing the data found in the Star Wars API. Allows users to insert nodes into a graph and the app will generate the possible edges for the nodes&lt;/p&gt;
+&lt;p&gt;&lt;a href=&quot;https://brooksbecton.github.io/SWAPI-Graph/&quot;&gt;Check It Out&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;I had started making a few posts about how asynchronous code works in JavaScript. At the the end of these I wanted to make a challenge so that someone could get some practice with the new ideas they had just learned about. Also, I wanted to use the &lt;a href=&quot;https://swapi.co/&quot;&gt;SWAPI&lt;/a&gt; as a data source.&lt;/p&gt;
+&lt;p&gt;Why SWAPI?&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;
+&lt;p&gt;It’s completely open, no keys required&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;It’s Star Wars.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;h2&gt;Origin&lt;/h2&gt;
+&lt;p&gt;The ending challenge for one was to follow a chain of resources from the SWAPI to help users see what callback hell can look/feel like. Then I thought about how I could maybe show these relationships from the SWAPI. I immediately thought of a graph with nodes and edges. I could make the graph just for the information I asked them to give, but I wanted it to be more dynamic.&lt;/p&gt;
+&lt;h2&gt;Goals&lt;/h2&gt;
+&lt;p&gt;My goals were to make a small intuitive app with a short life span. I stuck with React for this one and looked at a couple of different graphing libraries in JS. Most were fairly straight forward, but &lt;a href=&quot;http://visjs.org/&quot;&gt;vis&lt;/a&gt; was the easiest to get up and running with. I also wanted to UI to look slick. I have used &lt;a href=&quot;http://www.material-ui.com/&quot;&gt;Material UI&lt;/a&gt; and &lt;a href=&quot;https://react-bootstrap.github.io/&quot;&gt;React Bootstrap&lt;/a&gt; before so I wanted to try something new. After a little bit of searching, I came across &lt;a href=&quot;https://ant.design/&quot;&gt;Ant Design&lt;/a&gt; and it seemed pretty popular (20k+ stars at the time of writing).&lt;br&gt;
+&lt;br&gt;
+I had a good time making this little app. I used the &lt;a href=&quot;https://github.com/facebook/create-react-app&quot;&gt;create-react-app&lt;/a&gt; cli for the boiler and I didn’t know that it registered a &lt;a href=&quot;https://developers.google.com/web/fundamentals/primers/service-workers/&quot;&gt;service worker&lt;/a&gt; in production. Which helps out a lot. I cache the response from the SWAPI in the app to avoid a lot of back and forth and with the service worker registered that even further decreases the amount of information going over the wire. Also, almost anytime I can get a service worker easily integrated I like to try to max out the &lt;a href=&quot;https://developers.google.com/web/tools/lighthouse/&quot;&gt;Lighthouse&lt;/a&gt; scores in Chrome.&lt;/p&gt;
+&lt;p&gt;Here is what I ended up with at the time of writing.&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;PWA&lt;/strong&gt; - 100&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Performance&lt;/strong&gt; - 76&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Accessibility&lt;/strong&gt; - 94&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Best Practices&lt;/strong&gt; - 94&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2&gt;Challenges&lt;/h2&gt;
+&lt;h3&gt;Graph&lt;/h3&gt;
+&lt;p&gt;I made a small little “class” that helps interface the vis graphs with the data from the SWAPI. At first I dumped the
+entire contents of the SWAPI into the graph.&lt;/p&gt;
+&lt;img class=&quot;lazy&quot; data-src=&quot;/uploads/unknown.png&quot; sizes=&quot;(min-width: 100%)&quot;  /&gt;
+&lt;p&gt;There was way too much information on the page so I needed a way to filter down that information of to build up graphs. I went with the building up just so that users could make the graphs that they want and that would potentially use less data rather than pulling down all down and then having them filter down to a graph.&lt;/p&gt;
+&lt;h3&gt;First Meaningful Paint&lt;/h3&gt;
+&lt;p&gt;Getting the the first meaningful paint in under 300ms was pretty tough and that is one of the main reasons the Performance in the lighthouse audit is a 76. If you are using an external library for CSS, it can be tough for it to not take up a lot of time block a paint. I did a few things such as using &lt;a href=&quot;https://github.com/jamiebuilds/react-loadable&quot;&gt;React Loadable&lt;/a&gt; to code split on routes.&lt;/p&gt;
+&lt;img class=&quot;lazy&quot; alt=&quot;Screenshot of the console containing before and after sizes of bundles&quot; data-src=&quot;/uploads/after&amp;BeforeCodeSplit.png&quot; sizes=&quot;(min-width: 100%)&quot;  /&gt;
+&lt;p&gt;&lt;em&gt;After and Before Shot of Bundle Sizes&lt;/em&gt;&lt;/p&gt;
+&lt;p&gt;It helped reduce the size of the blocking scripts, but I’m still thinking about this one.&lt;/p&gt;
+&lt;h2&gt;Wrap Up&lt;/h2&gt;
+&lt;p&gt;I’m glad I made this. I got to try a few new technologies and ran into some challenges that I haven’t run into before. So now what? Go check out the graph and open some issues if you find any bugs or have an idea for improvements.&lt;/p&gt;
+&lt;p&gt;&lt;a href=&quot;https://brooksbecton.github.io/SWAPI-Graph/&quot;&gt;https://brooksbecton.github.io/SWAPI-Graph/&lt;/a&gt;&lt;/p&gt;</content:encoded></item><item><title><![CDATA[Async Javascript - Return of the Callbacks!]]></title><description><![CDATA[JavaScript has had a few iterations of ways to handle asynchronous code. It can be a little funky to understand what is going on if you are…]]></description><link>https://brooksbecton.github.io/brooksbecton.github.io-gatsby//Async-JavaScript/</link><guid isPermaLink="false">https://brooksbecton.github.io/brooksbecton.github.io-gatsby//Async-JavaScript/</guid><pubDate>Mon, 05 Feb 2018 00:00:00 GMT</pubDate><content:encoded>&lt;p&gt;JavaScript has had a few iterations of ways to handle asynchronous code. It can be a little funky to understand what is going on if you are new to JavaScript. In this example, we will make a request to the &lt;a href=&quot;https://swapi.co/&quot;&gt;SWAPI&lt;/a&gt; to get Luke Skywalker’s information and use callbacks to handle async. The code should say that is going to print a name, and then print the name.&lt;/p&gt;
+&lt;hr&gt;
+&lt;p&gt;&lt;strong&gt;Note&lt;/strong&gt; Callbacks are not much used anymore because they have the potential to make code harder to read. If you need async JS, look into using &lt;a href=&quot;https://developers.google.com/web/fundamentals/primers/promises&quot;&gt;Promises&lt;/a&gt; and if availible using &lt;a href=&quot;https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function&quot;&gt;async/await&lt;/a&gt;&lt;/p&gt;
+&lt;hr&gt;
+&lt;p&gt;Here is a naive approach&lt;/p&gt;
+&lt;div class=&quot;gatsby-highlight&quot;&gt;
+      &lt;pre class=&quot;language-js&quot;&gt;&lt;code class=&quot;language-js&quot;&gt;&lt;span class=&quot;token comment&quot;&gt;/**
+ * Makes an AJAX request to the SWAPI and
+ * returns Luke Skywalker&apos;s info
+ * @returns {Object} luke - Various Info about Luke Skywalker
+ */&lt;/span&gt;
+&lt;span class=&quot;token keyword&quot;&gt;function&lt;/span&gt; &lt;span class=&quot;token function&quot;&gt;getLuke&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;token function&quot;&gt;fetch&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&apos;https://swapi.co/api/people/1/&apos;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token function&quot;&gt;then&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;response &lt;span class=&quot;token operator&quot;&gt;=&gt;&lt;/span&gt; response&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token function&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token function&quot;&gt;then&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token keyword&quot;&gt;function&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;luke&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;
+      &lt;span class=&quot;token keyword&quot;&gt;return&lt;/span&gt; JSON&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token function&quot;&gt;parse&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;luke&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;token comment&quot;&gt;/**
+ * Prints the name of a Star Wars Character
+ * @param {Object} person - A Star Wars character
+ * @param {string} person.name - Name of the star wars character
+ */&lt;/span&gt;
+&lt;span class=&quot;token keyword&quot;&gt;function&lt;/span&gt; &lt;span class=&quot;token function&quot;&gt;printName&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;person&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;token keyword&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;person &lt;span class=&quot;token operator&quot;&gt;!==&lt;/span&gt; undefined&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;
+    console&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token function&quot;&gt;log&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;person&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;name&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+  &lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;token keyword&quot;&gt;else&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;
+    console&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token function&quot;&gt;log&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&apos;No Person Supplied&apos;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+  &lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;
+
+console&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token function&quot;&gt;log&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&apos;Printing Name&apos;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;token comment&quot;&gt;// Printing Name&lt;/span&gt;
+&lt;span class=&quot;token keyword&quot;&gt;const&lt;/span&gt; luke &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;token function&quot;&gt;getLuke&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;token comment&quot;&gt;// undefined&lt;/span&gt;
+&lt;span class=&quot;token function&quot;&gt;printName&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;luke&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;token comment&quot;&gt;// No Person Supplied&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+      &lt;/div&gt;
+&lt;p&gt;&lt;a href=&quot;https://codepen.io/brooksbecton/pen/QQmmoe?editors=0012&quot;&gt;CodePen&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;This may look like it will work, but remember that JavaScript is always synchronous. This is easy for me to remember if I think about JS always going “straight down.” It say’s its about to print the name, calls the function, &lt;em&gt;doesn’t wait for the request to finish&lt;/em&gt;, tries to prints Luke’s name. After the print the api returns the data, but it is already too late.~&lt;/p&gt;
+&lt;h2&gt;&lt;a href=&quot;#callbacks&quot;&gt;Callbacks&lt;/a&gt;&lt;/h2&gt;
+&lt;p&gt;Callbacks are a way to pass a function into another function as a parameter and then running that “callback” after then async code has finished. With this example, we pass the print function in as a callback, so that when the data is back from the API, the data will get passed into the print function.&lt;/p&gt;
+&lt;div class=&quot;gatsby-highlight&quot;&gt;
+      &lt;pre class=&quot;language-js&quot;&gt;&lt;code class=&quot;language-js&quot;&gt;&lt;span class=&quot;token comment&quot;&gt;/**
+ * Makes an AJAX request to the SWAPI and
+ * returns Luke Skywalkers info
+ * @param {Function} cb - The function to be called
+ *                        after the return of the jedi
+ */&lt;/span&gt;
+&lt;span class=&quot;token keyword&quot;&gt;function&lt;/span&gt; &lt;span class=&quot;token function&quot;&gt;getLuke&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;cb&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;token function&quot;&gt;fetch&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&apos;https://swapi.co/api/people/1/&apos;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token function&quot;&gt;then&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;response &lt;span class=&quot;token operator&quot;&gt;=&gt;&lt;/span&gt; response&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token function&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token function&quot;&gt;then&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token keyword&quot;&gt;function&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;data&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;
+      &lt;span class=&quot;token keyword&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;token function&quot;&gt;cb&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;JSON&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token function&quot;&gt;parse&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;data&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;token comment&quot;&gt;// ...&lt;/span&gt;
+
+console&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token function&quot;&gt;log&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&apos;Printing Name&apos;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;token comment&quot;&gt;// Printing Name&lt;/span&gt;
+&lt;span class=&quot;token function&quot;&gt;getLuke&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;printName&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;token comment&quot;&gt;// Luke Skywalker&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+      &lt;/div&gt;
+&lt;p&gt;&lt;a href=&quot;https://codepen.io/brooksbecton/pen/GQxxaX?editors=0012&quot;&gt;CodePen&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;We can pass functions as parameters in JS because in functions are &lt;a href=&quot;https://en.wikipedia.org/wiki/First-class_citizen&quot;&gt;First Class Citizens&lt;/a&gt;. Notice that we run &lt;code class=&quot;language-text&quot;&gt;getLuke(printName)&lt;/code&gt; which passes the function in without running it, instead of &lt;code class=&quot;language-text&quot;&gt;getLuke(printName())&lt;/code&gt; which runs printName then hands printName’s return value, &lt;em&gt;undefined&lt;/em&gt;, to getLuke as a parameter&lt;/p&gt;
+&lt;img class=&quot;lazy&quot; data-src=&quot;https://media.giphy.com/media/9K2nFglCAQClO/giphy.gif&quot;  style=&quot;display:block;margin: auto; width:75%&quot; sizes=&quot;(min-width: 100%)&quot;/&gt;
+&lt;p&gt;This works for this lunchbox example, but in reality this can get out of hand quickly if you have to make a few sequential requests which leads to &lt;a href=&quot;http://callbackhell.com/&quot;&gt;Callback Hell&lt;/a&gt;. It is much better to use Promises which we will get to next.&lt;/p&gt;
+&lt;h2&gt;&lt;a href=&quot;#challenge&quot;&gt;Challenge&lt;/a&gt;&lt;/h2&gt;
+&lt;p&gt;It’s important to understand what Callback Hell can look or feel like.
+Try this out.&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Find all the females from the films Luke was in&lt;/li&gt;
+&lt;li&gt;Find the planets they are from&lt;/li&gt;
+&lt;li&gt;Finally, list the males from those planets&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;&lt;a href=&quot;https://codepen.io/brooksbecton/pen/eVMrpB?editors=0012&quot;&gt;Solution*&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;*&lt;em&gt;Try to do it yourself before checking the solution&lt;/em&gt;&lt;/p&gt;</content:encoded></item><item><title><![CDATA[It is Wednesday My Dudes]]></title><description><![CDATA[On a random night in out software devs discord chat, we decided that we should work on a discord bot. Every Wednesday day one dude would…]]></description><link>https://brooksbecton.github.io/brooksbecton.github.io-gatsby//Wednesday Bot/</link><guid isPermaLink="false">https://brooksbecton.github.io/brooksbecton.github.io-gatsby//Wednesday Bot/</guid><pubDate>Wed, 24 Jan 2018 00:00:00 GMT</pubDate><content:encoded>&lt;p&gt;On a random night in out software devs discord chat, we decided that we should work on a discord bot. Every Wednesday day one dude would always post the “It’s Wednesday my dudes” meme. To make his life easier. I made the bot.&lt;/p&gt;
+&lt;p&gt;The bot takes advantage of a wrapper for the discord API. I started by using &lt;a href=&quot;https://www.npmjs.com/package/discord.io&quot;&gt;discord.io&lt;/a&gt; but there was an issue with a version mismatch between the repo and npm. I switched to &lt;a href=&quot;https://discord.js.org/#/&quot;&gt;discord.js&lt;/a&gt;. Both had great straight forward documentation.&lt;/p&gt;
+&lt;p&gt;I wanted to make sure that we could expand the types of posts and replies that the bot could do with ease. Making a super basic middleware allows the bots code to add in different listeners while being fed in a message in one location.&lt;/p&gt;
+&lt;p&gt;The last feature, before it’s initial release, was the ability for the bot to post memes along side it’s replies. What would be the best way to pull good, funny, and relevent content? We looked at using giphy’s API because you could query for gifs based on tags and who doesn’t like a good gif?&lt;/p&gt;
+&lt;img class=&quot;lazy&quot; data-src=&quot;https://media.giphy.com/media/l2SpKLnUXi63DMyCQ/giphy.gif&quot; alt=&quot;Gif Macho Man Randy Savage saying, Oooh Yeah.&quot; sizes=&quot;(min-width: 100%)&quot;/&gt;
+&lt;p&gt;But the keywords we were using to query weren’t bringing back the results of the frog or the meme that we were expected. It was going to best to pull form a curated collection of memes. Something like an imgur album or a youtube playlist. These would make it easier for users because they can use the great YouTube or Imgur UI and the bot can just pull it down without restarting.&lt;/p&gt;
+&lt;p&gt;&lt;a href=&quot;https://github.com/brooksbecton/ItsWednesdayMyDudesDiscordBot&quot;&gt;Wednesday Bot Repo &lt;/a&gt;&lt;/p&gt;</content:encoded></item></channel></rss>
